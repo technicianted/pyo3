@@ -67,6 +67,9 @@ pub unsafe trait PyTypeInfo: Sized + HasPyGilRef {
     /// Module name, if any.
     const MODULE: Option<&'static str>;
 
+    /// Enable type matching using type IDs (module.class) instead of type object pointers.
+    const TYPE_ID_ALIAS: bool;
+
     /// Returns the PyTypeObject instance for this type.
     fn type_object_raw(py: Python<'_>) -> *mut ffi::PyTypeObject;
 
@@ -158,6 +161,9 @@ pub unsafe trait PyTypeInfo: Sized {
 
     /// Module name, if any.
     const MODULE: Option<&'static str>;
+
+    /// Enable type matching using type IDs (module.class) instead of type object pointers.
+    const TYPE_ID_ALIAS: bool;
 
     /// Returns the PyTypeObject instance for this type.
     fn type_object_raw(py: Python<'_>) -> *mut ffi::PyTypeObject;

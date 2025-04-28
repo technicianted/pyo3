@@ -286,6 +286,7 @@ macro_rules! pyobject_native_type_info(
         unsafe impl<$($generics,)*> $crate::type_object::PyTypeInfo for $name {
             const NAME: &'static str = stringify!($name);
             const MODULE: ::std::option::Option<&'static str> = $module;
+            const TYPE_ID_ALIAS: bool = false;
 
             #[inline]
             #[allow(clippy::redundant_closure_call)]

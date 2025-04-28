@@ -39,6 +39,7 @@ impl PyNotImplemented {
 unsafe impl PyTypeInfo for PyNotImplemented {
     const NAME: &'static str = "NotImplementedType";
     const MODULE: Option<&'static str> = None;
+    const TYPE_ID_ALIAS: bool = false;
 
     fn type_object_raw(_py: Python<'_>) -> *mut ffi::PyTypeObject {
         unsafe { ffi::Py_TYPE(ffi::Py_NotImplemented()) }

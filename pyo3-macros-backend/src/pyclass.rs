@@ -71,6 +71,7 @@ pub struct PyClassPyO3Options {
     pub mapping: Option<kw::mapping>,
     pub module: Option<ModuleAttribute>,
     pub name: Option<NameAttribute>,
+    pub type_id_alias: Option<kw::type_id_alias>,
     pub ord: Option<kw::ord>,
     pub rename_all: Option<RenameAllAttribute>,
     pub sequence: Option<kw::sequence>,
@@ -93,6 +94,7 @@ pub enum PyClassPyO3Option {
     Mapping(kw::mapping),
     Module(ModuleAttribute),
     Name(NameAttribute),
+    TypeIdAlias(kw::type_id_alias),
     Ord(kw::ord),
     RenameAll(RenameAllAttribute),
     Sequence(kw::sequence),
@@ -129,6 +131,8 @@ impl Parse for PyClassPyO3Option {
             input.parse().map(PyClassPyO3Option::Module)
         } else if lookahead.peek(kw::name) {
             input.parse().map(PyClassPyO3Option::Name)
+        } else if lookahead.peek(attributes::kw::type_id_alias) {
+            input.parse().map(PyClassPyO3Option::TypeIdAlias)
         } else if lookahead.peek(attributes::kw::ord) {
             input.parse().map(PyClassPyO3Option::Ord)
         } else if lookahead.peek(kw::rename_all) {
@@ -202,6 +206,7 @@ impl PyClassPyO3Options {
             PyClassPyO3Option::Mapping(mapping) => set_option!(mapping),
             PyClassPyO3Option::Module(module) => set_option!(module),
             PyClassPyO3Option::Name(name) => set_option!(name),
+            PyClassPyO3Option::TypeIdAlias(type_id_alias) => set_option!(type_id_alias),
             PyClassPyO3Option::Ord(ord) => set_option!(ord),
             PyClassPyO3Option::RenameAll(rename_all) => set_option!(rename_all),
             PyClassPyO3Option::Sequence(sequence) => set_option!(sequence),
@@ -1667,6 +1672,7 @@ fn impl_pytypeinfo(
 
     #[cfg(not(feature = "gil-refs"))]
     let has_py_gil_ref = TokenStream::new();
+    let type_id_alias = attr.options.type_id_alias.is_some();
 
     quote! {
         #has_py_gil_ref
@@ -1674,6 +1680,7 @@ fn impl_pytypeinfo(
         unsafe impl #pyo3_path::type_object::PyTypeInfo for #cls {
             const NAME: &'static str = #cls_name;
             const MODULE: ::std::option::Option<&'static str> = #module;
+            const TYPE_ID_ALIAS: bool = #type_id_alias;
 
             #[inline]
             fn type_object_raw(py: #pyo3_path::Python<'_>) -> *mut #pyo3_path::ffi::PyTypeObject {
@@ -1684,6 +1691,40 @@ fn impl_pytypeinfo(
                     .get_or_init(py)
                     .as_type_ptr()
             }
+
+            #[inline]
+            fn is_type_of_bound(object: &Bound<'_, PyAny>) -> bool {
+                if Self::TYPE_ID_ALIAS {
+                    let t = object.get_type();
+                    let module = match Self::MODULE {
+                        Some(module) => module,
+                        None => "builtin",
+                    };
+                    if t.name().unwrap().to_str().unwrap() == Self::NAME && 
+                        t.module().unwrap().to_str().unwrap() == module {
+                        return true;
+                    }
+                }
+                // is_type_of_bound() from the original trait
+                unsafe { #pyo3_path::ffi::PyObject_TypeCheck(object.as_ptr(), Self::type_object_raw(object.py())) != 0 }
+            }
+
+            #[inline]
+            fn is_exact_type_of_bound(object: &Bound<'_, PyAny>) -> bool {
+                if Self::TYPE_ID_ALIAS {
+                    let t = object.get_type();
+                    let module = match Self::MODULE {
+                        Some(module) => module,
+                        None => "builtin",
+                    };
+                    if t.name().unwrap().to_str().unwrap() == Self::NAME && 
+                        t.module().unwrap().to_str().unwrap() == module {
+                        return true;
+                    }
+                }
+                // is_exact_type_of_bound() from the original trait
+                unsafe { #pyo3_path::ffi::Py_TYPE(object.as_ptr()) == Self::type_object_raw(object.py()) }
+            }        
         }
     }
 }
